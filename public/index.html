@@ -254,6 +254,8 @@ table.rk tr.me { background: var(--acc-soft); font-weight: 700; box-shadow: inse
 .gtoast.on { transform: translate(-50%, 0); }
 @media (prefers-reduced-motion: reduce) { .gtoast { transition: none; } }
 
+.nickbar { background: var(--acc-soft); border-bottom: 1px solid var(--line); padding-block: .6rem; }
+
 </style></head><body>
 <div id="app"></div>
 <noscript>Esta página necesita JavaScript.</noscript>
@@ -1657,6 +1659,24 @@ function aggregate(docs, tab) {
     .sort((x, y) => y.pts - x.pts || y.pct - x.pct || x.nick.localeCompare(y.nick));
 }
 
+// Guarda el apodo; devuelve un mensaje de error o null si todo fue bien.
+function applyNick(v) {
+  const n = cleanNick(v);
+  if (!n) return 'Escribe un apodo (hasta 16 caracteres).';
+  if (badNick(n)) return 'Ese apodo parece un dato personal (correo, enlace o teléfono). Elige otro.';
+  const old = S.nick ? docId() : null; S.nick = n; save();
+  if (old && old !== docId()) delDoc(old).catch(() => {});
+  push(); return null;
+}
+// Barra para pedir el apodo en cualquier pantalla; se quita sola al guardarlo.
+function nickBar(h) {
+  const inp = h('input', { type: 'text', maxlength: 16, id: 'nick-bar', autocomplete: 'off', spellcheck: 'false', placeholder: 'Tu apodo (máx. 16)' });
+  const msg = h('span', { class: 'cap', role: 'status' }, 'Pon un apodo para puntuar y salir en el ranking. Sin registro; no uses datos personales.');
+  const bar = h('form', { class: 'wrap nickform nickbar', onsubmit: ev => { ev.preventDefault(); const e = applyNick(inp.value); if (e) msg.textContent = e; else bar.remove(); } },
+    h('label', { for: 'nick-bar' }, 'Apodo'), inp, h('button', { type: 'submit', class: 'btn' }, 'Jugar'), msg);
+  return bar;
+}
+
 let tab = 'all', cache = [], lastOk = null, failed = false;
 function view(h) {
   const root = h('main', { class: 'wrap game' });
@@ -1671,12 +1691,9 @@ function view(h) {
   root.append(h('h1', { class: 'gh' }, 'Ranking'), form, notice, h('div', { class: 'gbar' }, tabs, refresh), body);
 
   function setNick(v) {
-    const n = cleanNick(v);
-    if (!n) { msg.textContent = 'Escribe un apodo (hasta 16 caracteres).'; return; }
-    if (badNick(n)) { msg.textContent = 'Ese apodo parece un dato personal (correo, enlace o teléfono). Elige otro.'; return; }
-    const old = S.nick ? docId() : null; S.nick = n; inp.value = n; save();
-    if (old && old !== docId()) delDoc(old).catch(() => {});
-    msg.textContent = '¡Hola, ' + n + '! Tus récords cuentan con este apodo.'; push(); setTimeout(load, 300);
+    const e = applyNick(v); inp.value = S.nick;
+    msg.textContent = e || '¡Hola, ' + S.nick + '! Tus récords cuentan con este apodo.';
+    if (!e) setTimeout(load, 300);
   }
   function paintTabs() {
     tabs.textContent = '';
@@ -1716,7 +1733,7 @@ function view(h) {
   return root;
 }
 
-window.DAWGame = { view, score, aggregate, cleanNick, state: () => S, mode: () => mode, badges: BADGES };
+window.DAWGame = { view, nickBar, score, aggregate, cleanNick, state: () => S, mode: () => mode, badges: BADGES };
 })();
 
 </script>
@@ -2243,6 +2260,7 @@ function render() {
   const r = route();
   $app.textContent = '';
   $app.append(header(r));
+  if (window.DAWGame && !window.DAWGame.state().nick && !r.ranking) $app.append(window.DAWGame.nickBar(h));
   if (r.ranking && window.DAWGame) { document.body.removeAttribute('data-mod'); $app.append(window.DAWGame.view(h)); document.title = 'Ranking'; return; }
   if (r.summary) { document.body.removeAttribute('data-mod'); $app.append(viewSummary()); document.title = 'Resumen de RA'; return; }
   if (!r.mod) { $app.append(viewHome()); document.title = 'Repaso 1ª evaluación DAW 2'; return; }

@@ -1,0 +1,10 @@
+{
+  "name": "repaso-daw2-ranking",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Web de repaso de 2º DAW con ranking casual (sin cuentas).",
+  "main": "server.js",
+  "scripts": { "start": "node server.js" },
+  "engines": { "node": ">=18" },
+  "dependencies": { "pg": "^8.13.0" }
+}
